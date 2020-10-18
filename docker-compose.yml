@@ -23,6 +23,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./init.sh:/docker-entrypoint-initdb.d/init.sh
+      - ./data:/tmp/data
 
   pgadmin:
     image: dpage/pgadmin4:latest

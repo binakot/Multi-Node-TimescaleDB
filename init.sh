@@ -19,3 +19,14 @@ CREATE TABLE telemetries
 SELECT create_hypertable('telemetries', 'time');
 
 EOSQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" \
+  -c "\COPY telemetries FROM /tmp/data/data1.csv CSV"
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" \
+  -c "\COPY telemetries FROM /tmp/data/data2.csv CSV"
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" \
+  -c "\COPY telemetries FROM /tmp/data/data3.csv CSV"
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" \
+  -c "\COPY telemetries FROM /tmp/data/data4.csv CSV"
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" \
+  -c "\COPY telemetries FROM /tmp/data/data5.csv CSV"
