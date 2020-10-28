@@ -4,13 +4,17 @@ networks:
   overlay:
 
 volumes:
-  pg_data:
+  pg_access_node_data:
+    driver: local
+  pg_data_node_1_data:
+    driver: local
+  pg_data_node_2_data:
     driver: local
 
 services:
-  postgres:
+  pg_access_node:
     image: timescale/timescaledb:2.0.0-rc1-pg12
-    container_name: postgres
+    container_name: pg_access_node
     restart: unless-stopped
     environment:
       - POSTGRES_DB=postgres
@@ -21,9 +25,44 @@ services:
     networks:
       - overlay
     volumes:
-      - pg_data:/var/lib/postgresql/data
-      - ./init.sh:/docker-entrypoint-initdb.d/init.sh
+      - pg_access_node_data:/var/lib/postgresql/data
+      - ./unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh
+      - ./init-access-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
       - ./data:/tmp/data
+
+  pg_data_node_1:
+    image: timescale/timescaledb:2.0.0-rc1-pg12
+    container_name: pg_data_node_1
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - 5433:5432
+    networks:
+      - overlay
+    volumes:
+      - pg_data_node_1_data:/var/lib/postgresql/data
+      - ./unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh
+      - ./init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
+
+  pg_data_node_2:
+    image: timescale/timescaledb:2.0.0-rc1-pg12
+    container_name: pg_data_node_2
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - 5434:5432
+    networks:
+      - overlay
+    volumes:
+      - pg_data_node_2_data:/var/lib/postgresql/data
+      - ./unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh
+      - ./init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -33,6 +72,6 @@ services:
       - PGADMIN_DEFAULT_EMAIL=admin@admin.com
       - PGADMIN_DEFAULT_PASSWORD=admin
     ports:
-      - 5433:80
+      - 15432:80
     networks:
       - overlay
