@@ -8,7 +8,7 @@ A multi-node setup of TimescaleDB.
 # Run app stack
 $ docker-compose up -d
 
-# Insert sample data
+# Insert sample data (firstly create trigger below!!!)
 $ docker exec -i pg_access_node /bin/sh < ./load-data.sh
 
 # Stop app stack and remove volumes
@@ -39,20 +39,82 @@ username: postgres
 password: postgres
 ```
 
-Example query to select some telemetry from access node:
+PostGIS Geometry trigger:
 
 ```sql
+-- Create function on every nodes
+CREATE FUNCTION telemetries_geometry_trigger_func() RETURNS trigger AS
+$$
+BEGIN
+    IF NEW.geometry IS NULL AND NEW.latitude NOTNULL AND NEW.longitude NOTNULL THEN
+        NEW.geometry := ST_SetSRID(ST_Makepoint(NEW.longitude, NEW.latitude), 4326);
+    END IF;
+    RETURN NEW;
+END
+$$
+LANGUAGE 'plpgsql';
+
+-- Then create trigger on access node
+CREATE TRIGGER telemetries_geometry
+    BEFORE INSERT
+    ON telemetries
+    FOR EACH ROW
+EXECUTE PROCEDURE telemetries_geometry_trigger_func();
+```
+
+Example queries:
+
+```sql
+-----------------
+-- ACCESS NODE --
+-----------------
+
+-- Check that table on access node doesn't contain any rows
+select count(*) from only telemetries;
+select count(*) from telemetries;
+
 -- Select some data from access node
 select * from telemetries
 where imei = '000000000000001'
 order by time asc
 limit 100;
 
--- Check that table on access node doesn't contain any rows
-select count(*) from only telemetries;
+-- Simple speed analytics
+SELECT
+  time_bucket('30 days', time) as bucket,
+  imei,
+  avg(speed) as avg,
+  max(speed) as max,
+  min(speed) as min
+FROM
+  telemetries
+GROUP BY bucket, imei
+ORDER BY imei;
 
--- You can run query below on each data node and check which devices store there
+---------------
+-- DATA NODE --
+---------------
+
+-- Check which devices are stored on which data node
 select distinct imei from telemetries;
+```
+
+Example views:
+
+```sql
+-- Spoiler: continuous aggregates not supported on distributed hypertables!
+CREATE MATERIALIZED VIEW speed_daily
+WITH (timescaledb.continuous)
+AS
+SELECT
+  time_bucket('1 day', time) as bucket,
+  imei,
+  avg(speed) as avg,
+  max(speed) as max,
+  min(speed) as min
+FROM
+  telemetries
+GROUP BY bucket, imei;
 ```
 
 ## Useful links
@@ -98,8 +160,3 @@ Doing so might lead to inconsistent distributed hypertables.
 * TimescaleDB can be elastically scaled out by simply `adding data nodes` to a distributed database.
 TimescaleDB can (and will) adjust the number of space partitions as new data nodes are added.
 Although existing chunks will not have their space partitions updated, the new settings will be applied to newly created chunks.
-
-## TODOs
-
-* Migrate to TimescaleDB with PostGIS extension and add more geospatial examples. 
-Good place to start: https://github.com/timescale/examples

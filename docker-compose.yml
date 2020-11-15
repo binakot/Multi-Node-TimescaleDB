@@ -13,7 +13,7 @@ volumes:
 
 services:
   pg_access_node:
-    image: timescale/timescaledb:2.0.0-rc1-pg12
+    image: timescale/timescaledb-postgis:2.0.0-rc3-pg12
     container_name: pg_access_node
     restart: unless-stopped
     environment:
@@ -26,12 +26,13 @@ services:
       - overlay
     volumes:
       - pg_access_node_data:/var/lib/postgresql/data
+      - ./trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh
       - ./unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh
       - ./init-access-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
       - ./data:/tmp/data
 
   pg_data_node_1:
-    image: timescale/timescaledb:2.0.0-rc1-pg12
+    image: timescale/timescaledb-postgis:2.0.0-rc3-pg12
     container_name: pg_data_node_1
     restart: unless-stopped
     environment:
@@ -44,11 +45,12 @@ services:
       - overlay
     volumes:
       - pg_data_node_1_data:/var/lib/postgresql/data
+      - ./trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh
       - ./unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh
       - ./init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
 
   pg_data_node_2:
-    image: timescale/timescaledb:2.0.0-rc1-pg12
+    image: timescale/timescaledb-postgis:2.0.0-rc3-pg12
     container_name: pg_data_node_2
     restart: unless-stopped
     environment:
@@ -61,6 +63,7 @@ services:
       - overlay
     volumes:
       - pg_data_node_2_data:/var/lib/postgresql/data
+      - ./trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh
       - ./unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh
       - ./init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
 
