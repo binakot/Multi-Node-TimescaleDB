@@ -33,7 +33,6 @@ CREATE TABLE telemetries
     time        TIMESTAMPTZ       NOT NULL,
     latitude    DOUBLE PRECISION  NOT NULL,
     longitude   DOUBLE PRECISION  NOT NULL,
-    geometry    GEOMETRY(POINT, 4326),
     speed       SMALLINT          NOT NULL,
     course      SMALLINT          NOT NULL,
 

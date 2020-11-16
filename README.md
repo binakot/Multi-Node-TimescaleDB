@@ -8,7 +8,7 @@ A multi-node setup of TimescaleDB.
 # Run app stack
 $ docker-compose up -d
 
-# Insert sample data (firstly create trigger below!!!)
+# Insert sample data
 $ docker exec -i pg_access_node /bin/sh < ./load-data.sh
 
 # Stop app stack and remove volumes
@@ -39,27 +39,16 @@ username: postgres
 password: postgres
 ```
 
-PostGIS Geometry trigger:
+PostGIS-typed column:
 
 ```sql
--- Create function on every nodes
-CREATE FUNCTION telemetries_geometry_trigger_func() RETURNS trigger AS
-$$
-BEGIN
-    IF NEW.geometry IS NULL AND NEW.latitude NOTNULL AND NEW.longitude NOTNULL THEN
-        NEW.geometry := ST_SetSRID(ST_Makepoint(NEW.longitude, NEW.latitude), 4326);
-    END IF;
-    RETURN NEW;
-END
-$$
-LANGUAGE 'plpgsql';
+-- Add new column with PostGIS type (WGS84)
+ALTER TABLE telemetries
+ADD COLUMN geometry GEOMETRY(POINT, 4326);
 
--- Then create trigger on access node
-CREATE TRIGGER telemetries_geometry
-    BEFORE INSERT
-    ON telemetries
-    FOR EACH ROW
-EXECUTE PROCEDURE telemetries_geometry_trigger_func();
+-- Calculate all rows (took about 10 minutes)
+UPDATE telemetries 
+SET geometry = ST_SetSRID(ST_Makepoint(longitude, latitude), 4326);
 ```
 
 Example queries:
@@ -86,10 +75,15 @@ SELECT
   avg(speed) as avg,
   max(speed) as max,
   min(speed) as min
-FROM
-  telemetries
-GROUP BY bucket, imei
-ORDER BY imei;
+FROM telemetries
+GROUP BY imei, bucket
+ORDER BY imei, bucket;
+
+-- Routes of vehicles for 1 week
+SELECT st_collect (geometry), imei
+FROM telemetries
+WHERE time > '2020-06-01' AND time < '2020-06-07'
+GROUP BY imei
 
 ---------------
 -- DATA NODE --
@@ -118,6 +112,8 @@ GROUP BY bucket, imei;
 ```
 
 ## Useful links
+
+* [TimescaleDB Blog: TimescaleDB 2.0](https://blog.timescale.com/blog/timescaledb-2-0-a-multi-node-petabyte-scale-completely-free-relational-database-for-time-series)
 
 * [TimescaleDB Docs: Single Node vs. Multi-Node](https://docs.timescale.com/v2.0/introduction/architecture#single-node-vs-clustering)
 
