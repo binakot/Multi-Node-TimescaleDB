@@ -2,6 +2,9 @@
 
 A multi-node setup of TimescaleDB.
 
+Configuration: 
+single access node and 3 data nodes with replication factor 2.
+
 ## How to run
 
 ```bash
@@ -37,6 +40,12 @@ host: pg_data_node_2
 port: 5434
 username: postgres
 password: postgres
+
+# Data node 3
+host: pg_data_node_3
+port: 5435
+username: postgres
+password: postgres
 ```
 
 PostGIS-typed column:
@@ -68,6 +77,16 @@ where imei = '000000000000001'
 order by time asc
 limit 100;
 
+select * from telemetries
+where imei = '000000000000001' OR imei = '000000000000005'
+order by time asc
+limit 100;
+
+select * from telemetries
+where imei in ('000000000000001', '000000000000005')
+order by time asc
+limit 100;
+
 -- Simple speed analytics
 SELECT
   time_bucket('30 days', time) as bucket,
@@ -83,14 +102,14 @@ ORDER BY imei, bucket;
 SELECT st_collect (geometry), imei
 FROM telemetries
 WHERE time > '2020-06-01' AND time < '2020-06-07'
-GROUP BY imei
+GROUP BY imei;
 
 ---------------
 -- DATA NODE --
 ---------------
 
 -- Check which devices are stored on which data node
-select distinct imei from telemetries;
+select distinct imei from telemetries order by imei;
 ```
 
 Example views:
@@ -101,14 +120,13 @@ CREATE MATERIALIZED VIEW speed_daily
 WITH (timescaledb.continuous)
 AS
 SELECT
-  time_bucket('1 day', time) as bucket,
+  time_bucket('30 days', time) as bucket,
   imei,
   avg(speed) as avg,
   max(speed) as max,
   min(speed) as min
-FROM
-  telemetries
-GROUP BY bucket, imei;
+FROM telemetries
+GROUP BY imei, bucket;
 ```
 
 ## Useful links
