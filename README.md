@@ -48,18 +48,6 @@ username: postgres
 password: postgres
 ```
 
-PostGIS-typed column:
-
-```sql
--- Add new column with PostGIS type (WGS84)
-ALTER TABLE telemetries
-ADD COLUMN geometry GEOMETRY(POINT, 4326);
-
--- Calculate all rows (took about 10 minutes)
-UPDATE telemetries 
-SET geometry = ST_SetSRID(ST_Makepoint(longitude, latitude), 4326);
-```
-
 Example queries:
 
 ```sql
@@ -99,10 +87,10 @@ GROUP BY imei, bucket
 ORDER BY imei, bucket;
 
 -- Routes of vehicles for 1 week
-SELECT st_collect (geometry), imei
+SELECT ST_SetSRID(ST_Makepoint(longitude, latitude), 4326), imei
 FROM telemetries
 WHERE time > '2020-06-01' AND time < '2020-06-07'
-GROUP BY imei;
+ORDER BY imei asc, time desc;
 
 ---------------
 -- DATA NODE --
@@ -115,7 +103,7 @@ select distinct imei from telemetries order by imei;
 Example views:
 
 ```sql
--- Spoiler: continuous aggregates not supported on distributed hypertables!
+-- Spoiler: Continuous aggregates and time_bucket_gapfill, do not currently work on distributed hypertables. Those are also in development.
 CREATE MATERIALIZED VIEW speed_daily
 WITH (timescaledb.continuous)
 AS
@@ -127,6 +115,24 @@ SELECT
   min(speed) as min
 FROM telemetries
 GROUP BY imei, bucket;
+```
+
+PostGIS-typed column:
+
+```sql
+-- Add new column with PostGIS type (WGS84)
+ALTER TABLE telemetries
+ADD COLUMN geometry GEOMETRY(POINT, 4326);
+
+-- Calculate all rows (took about 15 minutes)
+UPDATE telemetries 
+SET geometry = ST_SetSRID(ST_Makepoint(longitude, latitude), 4326);
+
+-- Routes of vehicles for 1 week
+SELECT st_collect (geometry), imei
+FROM telemetries
+WHERE time > '2020-06-01' AND time < '2020-06-07'
+GROUP BY imei;
 ```
 
 ## Useful links
