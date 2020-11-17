@@ -56,48 +56,42 @@ Example queries:
 -----------------
 
 -- Check that table on access node doesn't contain any rows
-select count(*) from only telemetries;
-select count(*) from telemetries;
+SELECT count(*) FROM ONLY telemetries;
+SELECT count(*) FROM telemetries;
 
 -- Select some data from access node
-select * from telemetries
-where imei = '000000000000001'
-order by time asc
-limit 100;
+SELECT * FROM telemetries
+WHERE imei = '000000000000001'
+ORDER BY time ASC
+LIMIT 100;
 
-select * from telemetries
-where imei = '000000000000001' OR imei = '000000000000005'
-order by time asc
-limit 100;
+SELECT * FROM telemetries
+WHERE imei = '000000000000001' OR imei = '000000000000005'
+ORDER BY time ASC
+LIMIT 100;
 
-select * from telemetries
-where imei in ('000000000000001', '000000000000005')
-order by time asc
-limit 100;
+SELECT * FROM telemetries
+WHERE imei IN ('000000000000001', '000000000000005')
+ORDER BY time ASC
+LIMIT 100;
 
 -- Simple speed analytics
 SELECT
-  time_bucket('30 days', time) as bucket,
+  time_bucket('30 days', time) AS bucket,
   imei,
-  avg(speed) as avg,
-  max(speed) as max,
-  min(speed) as min
+  avg(speed) AS avg,
+  max(speed) AS max,
+  min(speed) AS min
 FROM telemetries
 GROUP BY imei, bucket
 ORDER BY imei, bucket;
-
--- Routes of vehicles for 1 week
-SELECT ST_SetSRID(ST_Makepoint(longitude, latitude), 4326), imei
-FROM telemetries
-WHERE time > '2020-06-01' AND time < '2020-06-07'
-ORDER BY imei asc, time desc;
 
 ---------------
 -- DATA NODE --
 ---------------
 
 -- Check which devices are stored on which data node
-select distinct imei from telemetries order by imei;
+SELECT DISTINCT imei FROM telemetries ORDER BY imei;
 ```
 
 Example views:
@@ -108,11 +102,11 @@ CREATE MATERIALIZED VIEW speed_daily
 WITH (timescaledb.continuous)
 AS
 SELECT
-  time_bucket('30 days', time) as bucket,
+  time_bucket('30 days', time) AS bucket,
   imei,
-  avg(speed) as avg,
-  max(speed) as max,
-  min(speed) as min
+  avg(speed) AS avg,
+  max(speed) AS max,
+  min(speed) AS min
 FROM telemetries
 GROUP BY imei, bucket;
 ```
@@ -120,6 +114,14 @@ GROUP BY imei, bucket;
 PostGIS-typed column:
 
 ```sql
+-- Routes of vehicles for 1 week
+SELECT imei, ST_SetSRID(ST_Makepoint(longitude, latitude), 4326)
+FROM telemetries
+WHERE time > '2020-06-01' AND time < '2020-06-07'
+ORDER BY imei asc, time desc;
+
+-----------------
+
 -- Add new column with PostGIS type (WGS84)
 ALTER TABLE telemetries
 ADD COLUMN geometry GEOMETRY(POINT, 4326);
@@ -128,11 +130,25 @@ ADD COLUMN geometry GEOMETRY(POINT, 4326);
 UPDATE telemetries 
 SET geometry = ST_SetSRID(ST_Makepoint(longitude, latitude), 4326);
 
--- Routes of vehicles for 1 week
-SELECT st_collect (geometry), imei
+SELECT imei, st_collect (geometry)
 FROM telemetries
 WHERE time > '2020-06-01' AND time < '2020-06-07'
 GROUP BY imei;
+
+SELECT imei, ST_MakeLine(telemetries.geometry ORDER BY time) AS track
+FROM telemetries
+WHERE time > '2020-06-01' AND time < '2020-06-07'
+GROUP BY imei;
+
+WITH tracks AS (
+    SELECT imei, ST_MakeLine(telemetries.geometry ORDER BY time) AS track
+    FROM telemetries
+    WHERE time > '2020-06-01' AND time < '2020-06-07'
+    GROUP BY imei
+)
+SELECT imei, ST_Length(track::geography) / 1000 AS length
+FROM tracks
+GROUP BY imei, length;
 ```
 
 ## Useful links
