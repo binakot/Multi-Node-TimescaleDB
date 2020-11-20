@@ -1,24 +1,35 @@
 # Multi-Node-TimescaleDB
 
-A multi-node setup of TimescaleDB.
+Demo project for an online workshop with #RuPostgresTuesday.
+Check out the first part: 
+[В-s02e08 Распаковка TimescaleDB 2.0. В гостях — Иван Муратов](https://www.youtube.com/watch?v=vbJCq9PhSR0&t=5395s&ab_channel=%23RuPostgres).
 
-Configuration: 
-single access node and 3 data nodes with replication factor 2.
+If you need the same project as in first part check out the branch: 
+[PgTuesday_1_17.11.2020](https://github.com/binakot/Multi-Node-TimescaleDB/tree/PgTuesday_1_17.11.2020).
 
-## How to run
+The second one is coming...
+
+The main branch is under development and can be different from the video.
+
+## About
+
+A multi-node setup of TimescaleDB 2.0.0 RC3.
+
+Initial cluster configuration: 
+single access node (AN) and 2 data nodes (DN) with 1 week interval and replication factor 1.
+
+## How to run & stop
 
 ```bash
 # Run app stack
 $ docker-compose up -d
 
-# Insert sample data
-$ docker exec -i pg_access_node /bin/sh < ./load-data.sh
-
 # Stop app stack and remove volumes
 $ docker-compose down --volumes
 ```
 
-`PgAdmin` is available on [http://localhost:15432](http://localhost:15432) with `admin@admin.com` / `admin`.
+`PgAdmin` is available on [http://localhost:15432](http://localhost:15432) 
+with `admin@admin.com` / `admin`.
 
 Just add new connections in GUI with settings: 
 
@@ -40,113 +51,67 @@ host: pg_data_node_2
 port: 5434
 username: postgres
 password: postgres
-
-# Data node 3
-host: pg_data_node_3
-port: 5435
-username: postgres
-password: postgres
 ```
 
-Example queries:
+## Workshop
+
+### 1. Preparation
+
+At this moment you should to have a running cluster with 1 access node and 2 data nodes.
+If you didn't please look at `how to run` section and do it firstly.
+Also, you need access to all nodes via `psql`, `pgAdmin` or any other way you like.
+
+Now you can fill sample data:
+
+```bash
+$ gzip -k -d ./data/*csv.gz
+$ docker exec -i pg_access_node /bin/sh < ./load-init-data.sh
+```
+
+### 2. Querying
 
 ```sql
------------------
--- ACCESS NODE --
------------------
+-- Distinct on all telemetries
+SELECT DISTINCT imei FROM telemetries ORDER BY imei;
 
--- Check that table on access node doesn't contain any rows
-SELECT count(*) FROM ONLY telemetries;
-SELECT count(*) FROM telemetries;
-
--- Select some data from access node
-SELECT * FROM telemetries
-WHERE imei = '000000000000001'
-ORDER BY time ASC
-LIMIT 100;
-
-SELECT * FROM telemetries
-WHERE imei = '000000000000001' OR imei = '000000000000005'
-ORDER BY time ASC
-LIMIT 100;
-
-SELECT * FROM telemetries
-WHERE imei IN ('000000000000001', '000000000000005')
-ORDER BY time ASC
-LIMIT 100;
-
--- Simple speed analytics
+-- Speed analytics for 1 year
 SELECT
   time_bucket('30 days', time) AS bucket,
   imei,
   avg(speed) AS avg,
-  max(speed) AS max,
-  min(speed) AS min
+  max(speed) AS max
 FROM telemetries
+WHERE speed > 0
 GROUP BY imei, bucket
 ORDER BY imei, bucket;
 
----------------
--- DATA NODE --
----------------
+-- Speed percentiles on all telemetries
+SELECT 
+    percentile_cont(0.50) WITHIN GROUP (ORDER BY speed) AS p50,
+    percentile_cont(0.90) WITHIN GROUP (ORDER BY speed) AS p90,
+    percentile_cont(0.99) WITHIN GROUP (ORDER BY speed) AS p99
+FROM telemetries;
 
--- Check which devices are stored on which data node
-SELECT DISTINCT imei FROM telemetries ORDER BY imei;
-```
+-- Single track points for 1 month
+SELECT * FROM telemetries 
+WHERE imei = '000000000000001'
+AND time > '2019-09-01' AND time < '2019-10-01'
+ORDER BY time ASC;
 
-Example views:
-
-```sql
--- Spoiler: Continuous aggregates and time_bucket_gapfill, do not currently work on distributed hypertables. Those are also in development.
-CREATE MATERIALIZED VIEW speed_daily
-WITH (timescaledb.continuous)
-AS
-SELECT
-  time_bucket('30 days', time) AS bucket,
-  imei,
-  avg(speed) AS avg,
-  max(speed) AS max,
-  min(speed) AS min
+-- All tracks for 1 month
+SELECT imei, ST_MakeLine(telemetries.geography::geometry ORDER BY time)::geography AS track
 FROM telemetries
-GROUP BY imei, bucket;
-```
-
-PostGIS-typed column:
-
-```sql
--- Routes of vehicles for 1 week
-SELECT imei, ST_SetSRID(ST_Makepoint(longitude, latitude), 4326)
-FROM telemetries
-WHERE time > '2020-06-01' AND time < '2020-06-07'
-ORDER BY imei asc, time desc;
-
------------------
-
--- Add new column with PostGIS type (WGS84)
-ALTER TABLE telemetries
-ADD COLUMN geometry GEOMETRY(POINT, 4326);
-
--- Calculate all rows (took about 15 minutes)
-UPDATE telemetries 
-SET geometry = ST_SetSRID(ST_Makepoint(longitude, latitude), 4326);
-
-SELECT imei, st_collect (geometry)
-FROM telemetries
-WHERE time > '2020-06-01' AND time < '2020-06-07'
+WHERE time > '2019-09-01' AND time < '2019-10-01'
 GROUP BY imei;
 
-SELECT imei, ST_MakeLine(telemetries.geometry ORDER BY time) AS track
-FROM telemetries
-WHERE time > '2020-06-01' AND time < '2020-06-07'
-GROUP BY imei;
-
+-- All vehicle mileages for 1 month
 WITH tracks AS (
-    SELECT imei, ST_MakeLine(telemetries.geometry ORDER BY time) AS track
-    FROM telemetries
-    WHERE time > '2020-06-01' AND time < '2020-06-07'
-    GROUP BY imei
+    SELECT imei, ST_MakeLine(telemetries.geography::geometry ORDER BY time)::geography AS track
+	FROM telemetries
+	WHERE time > '2019-09-01' AND time < '2019-10-01'
+	GROUP BY imei
 )
-SELECT imei, ST_Length(track::geography) / 1000 AS length
+SELECT imei, ST_Length(track) / 1000 AS kilometers
 FROM tracks
 GROUP BY imei, length;
 ```

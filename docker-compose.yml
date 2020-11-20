@@ -10,8 +10,6 @@ volumes:
     driver: local
   pg_data_node_2_data:
     driver: local
-  pg_data_node_3_data:
-    driver: local
 
 services:
   pg_access_node:
@@ -65,24 +63,6 @@ services:
       - overlay
     volumes:
       - pg_data_node_2_data:/var/lib/postgresql/data
-      - ./trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh
-      - ./unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh
-      - ./init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
-
-  pg_data_node_3:
-    image: timescale/timescaledb-postgis:2.0.0-rc3-pg12
-    container_name: pg_data_node_3
-    restart: unless-stopped
-    environment:
-      - POSTGRES_DB=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - 5435:5432
-    networks:
-      - overlay
-    volumes:
-      - pg_data_node_3_data:/var/lib/postgresql/data
       - ./trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh
       - ./unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh
       - ./init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
