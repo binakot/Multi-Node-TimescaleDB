@@ -2,6 +2,8 @@ version: '3.7'
 
 networks:
   overlay:
+    external:
+      name: pg_cluster_network
 
 volumes:
   pg_access_node_data:

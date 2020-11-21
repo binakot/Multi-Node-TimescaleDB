@@ -18,14 +18,12 @@ A multi-node setup of TimescaleDB 2.0.0 RC3.
 Initial cluster configuration: 
 single access node (AN) and 2 data nodes (DN) with 1 week interval and replication factor 1.
 
-## How to run & stop
+## How to run
 
 ```bash
-# Run app stack
+# Run app stack with external network
+$ docker network create pg_cluster_network
 $ docker-compose up -d
-
-# Stop app stack and remove volumes
-$ docker-compose down --volumes
 ```
 
 `PgAdmin` is available on [http://localhost:15432](http://localhost:15432) 
@@ -68,18 +66,24 @@ $ gzip -k -d ./data/*csv.gz
 $ docker exec -i pg_access_node /bin/sh < ./load-init-data.sh
 ```
 
-### 2. Querying
+### 2. Learning cluster configuration
+
+Run on access node and each data nodes separately.
 
 ```sql
--- Distinct on all telemetries
 SELECT DISTINCT imei FROM telemetries ORDER BY imei;
+SELECT count(*) FROM telemetries;
+```
 
+### 3. Querying to cluster via access node
+
+```sql
 -- Speed analytics for 1 year
 SELECT
-  time_bucket('30 days', time) AS bucket,
-  imei,
-  avg(speed) AS avg,
-  max(speed) AS max
+    time_bucket('30 days', time) AS bucket,
+    imei,
+    avg(speed) AS avg,
+    max(speed) AS max
 FROM telemetries
 WHERE speed > 0
 GROUP BY imei, bucket
@@ -113,8 +117,80 @@ WITH tracks AS (
 )
 SELECT imei, ST_Length(track) / 1000 AS kilometers
 FROM tracks
-GROUP BY imei, length;
+GROUP BY imei, kilometers;
 ```
+
+### 4. Add third data node to the cluster
+
+Firstly run the third instance of postgres for new data node:
+
+```bash
+$ docker volume create pg_data_node_3_data
+$ docker run -d \
+    --name pg_data_node_3 \
+    --restart=unless-stopped \
+    -e "POSTGRES_DB=postgres" \
+    -e "POSTGRES_USER=postgres" \
+    -e "POSTGRES_PASSWORD=postgres" \
+    -p 5435:5432 \
+    --network pg_cluster_network \
+    -v pg_data_node_3_data:/var/lib/postgresql/data \
+    -v `pwd`/trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh \
+    -v `pwd`/unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh \
+    -v `pwd`//init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh \
+    timescale/timescaledb-postgis:2.0.0-rc3-pg12
+```
+
+Now connect a new node to the cluster running command below from the access node:
+
+```sql
+SELECT * FROM add_data_node('data_node_3', host => 'pg_data_node_3');
+SELECT * FROM timescaledb_information.data_nodes;
+```
+
+Then attach new data node to the distributed hypertable:
+
+```sql
+SELECT * FROM attach_data_node('data_node_3', 'telemetries');
+SELECT * FROM timescaledb_information.hypertables;
+```
+
+### 5. Add more sample data into the cluster with 3 data nodes
+
+```bash
+$ docker exec -i pg_access_node /bin/sh < ./load-more-data.sh
+```
+
+Run on access node and each data nodes separately.
+
+```sql
+SELECT DISTINCT imei FROM telemetries ORDER BY imei;
+SELECT count(*) FROM telemetries;
+```
+
+### !!! TODO MORE STEPS !!!
+
+- Correct data distribution between nodes
+
+- Block one data node and fill more data
+
+- Chunk compression
+
+- Add Grafana
+
+### N. Stop the cluster
+
+```bash
+$ docker stop pg_data_node_3
+$ docker rm pg_data_node_3
+$ docker volume rm pg_data_node_3_data
+
+$ docker-compose down --volumes
+
+$ docker network rm pg_cluster_network
+```
+
+---
 
 ## Useful links
 
@@ -135,6 +211,8 @@ GROUP BY imei, length;
 * [TimescaleDB DockerHub: Docker images](https://hub.docker.com/r/timescale/timescaledb)
 
 * [TimescaleDB GitHub: Examples](https://github.com/timescale/examples)
+
+---
 
 ## Main points
 
