@@ -33,4 +33,4 @@ EOSQL
 
 echo "Update planner statistics and table maintenance..."
 psql -v ON_ERROR_STOP=1 -h pg_access_node -U "$POSTGRES_USER" \
-  -c "CALL distributed_exec('VACUUM (VERBOSE, ANALYZE) telemetries', transactional => FALSE)"
+    -c "CALL distributed_exec('ANALYZE telemetries', transactional => FALSE)"
