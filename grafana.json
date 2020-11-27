@@ -15,7 +15,6 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 1,
   "links": [],
   "panels": [
     {
@@ -27,7 +26,7 @@
         "#FF9830",
         "#C4162A"
       ],
-      "datasource": "TimescaleDB",
+      "datasource": null,
       "decimals": 0,
       "esMetric": "Count",
       "fieldConfig": {

@@ -78,6 +78,7 @@ Run on access node and each data nodes separately:
 
 ```sql
 SELECT count(*) FROM telemetries;
+ANALYZE telemetries;
 SELECT * FROM approximate_row_count('telemetries');
 SELECT DISTINCT imei FROM telemetries ORDER BY imei;
 ```
@@ -177,6 +178,7 @@ Run on access node and each data nodes separately:
 
 ```sql
 SELECT count(*) FROM telemetries;
+ANALYZE telemetries;
 SELECT * FROM approximate_row_count('telemetries');
 SELECT DISTINCT imei FROM telemetries ORDER BY imei;
 ```
@@ -187,6 +189,7 @@ Check old and new data distribution:
 SELECT data_nodes, chunk_name, range_start, range_end FROM timescaledb_information.chunks
 WHERE range_start < '2020-01-01'
 ORDER BY data_nodes ASC, range_start ASC;
+
 SELECT data_nodes FROM timescaledb_information.chunks
 WHERE range_start < '2020-01-01'
 GROUP BY data_nodes;
@@ -194,6 +197,7 @@ GROUP BY data_nodes;
 SELECT data_nodes, chunk_name, range_start, range_end FROM timescaledb_information.chunks
 WHERE range_start > '2020-01-01'
 ORDER BY data_nodes ASC, range_start ASC;
+
 SELECT data_nodes FROM timescaledb_information.chunks
 WHERE range_start > '2020-01-01'
 GROUP BY data_nodes;
@@ -218,6 +222,14 @@ SELECT * FROM chunks_detailed_size('telemetries');
 SELECT node_name, chunk_name, pg_size_pretty(total_bytes) AS total
 FROM chunks_detailed_size('telemetries')
 ORDER BY node_name ASC, chunk_name ASC;
+```
+
+Create a dump for single chunk before compression:
+
+```bash
+$ docker exec -i pg_data_node_2 \
+    pg_dump -h localhost -p 5432 -U postgres -Fp -v \
+    -t _timescaledb_internal._dist_hyper_1_1_chunk postgres > ./chunk_before_compression.sql
 ```
 
 Apply compression to hypertable:
@@ -262,6 +274,22 @@ FROM telemetries
 WHERE imei = '000000000000001'
 AND time > '2019-09-01' AND time < '2019-10-01'
 GROUP BY imei;
+```
+
+Create a dump for single chunk after compression:
+
+```bash
+$ docker exec -i pg_data_node_1 \
+    pg_dump -h localhost -p 5432 -U postgres -Fp -v \
+    -t _timescaledb_internal._dist_hyper_1_1_chunk postgres > ./chunk_after_compression.sql
+
+$ docker exec -i pg_data_node_1 \
+    psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres \
+    -c "SELECT compressed_chunk_id FROM _timescaledb_catalog.chunk WHERE table_name = '_dist_hyper_1_1_chunk'"
+
+$ docker exec -i pg_data_node_1 \
+    pg_dump -h localhost -p 5432 -U postgres -Fp -v \
+    -t _timescaledb_internal.compress_hyper_2_1_chunk postgres > ./compressed_chunk.sql
 ```
 
 ### 7. Visualization
