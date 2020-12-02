@@ -5,12 +5,14 @@ Watch tons of cool and useful videos on their channel:
 [https://youtube.com/RuPostgres](https://youtube.com/RuPostgres).
 
 Check out the first part: 
-[В-s02e08 Распаковка TimescaleDB 2.0. В гостях — Иван Муратов](https://www.youtube.com/watch?v=vbJCq9PhSR0&t=5395s&ab_channel=%23RuPostgres).
-
+[В-s02e08 Распаковка TimescaleDB 2.0. В гостях — Иван Муратов](https://youtu.be/vbJCq9PhSR0).
 If you need the same project as in the first part check out the branch: 
 [PgTuesday_1_17.11.2020](https://github.com/binakot/Multi-Node-TimescaleDB/tree/PgTuesday_1_17.11.2020).
 
-The second one is coming...
+The second part is already available: 
+[В-s02e09 Timescale с Иваном Муратовым. Часть 2 — ныряем глубже: сжатие и визуализация](https://youtu.be/1C2VGD90KGk).
+Added corresponding branch for the video:
+[PgTuesday_2_01.12.2020](https://github.com/binakot/Multi-Node-TimescaleDB/tree/PgTuesday_2_01.12.2020).
 
 The main branch is under development and can be different from the video.
 
@@ -279,17 +281,17 @@ GROUP BY imei;
 Create a dump for single chunk after compression:
 
 ```bash
-$ docker exec -i pg_data_node_1 \
+$ docker exec -i pg_data_node_2 \
     pg_dump -h localhost -p 5432 -U postgres -Fp -v \
     -t _timescaledb_internal._dist_hyper_1_1_chunk postgres > ./chunk_after_compression.sql
 
-$ docker exec -i pg_data_node_1 \
+$ docker exec -i pg_data_node_2 \
     psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres \
     -c "SELECT compressed_chunk_id FROM _timescaledb_catalog.chunk WHERE table_name = '_dist_hyper_1_1_chunk'"
 
-$ docker exec -i pg_data_node_1 \
+$ docker exec -i pg_data_node_2 \
     pg_dump -h localhost -p 5432 -U postgres -Fp -v \
-    -t _timescaledb_internal.compress_hyper_2_1_chunk postgres > ./compressed_chunk.sql
+    -t _timescaledb_internal.compress_hyper_1_1_chunk postgres > ./compressed_chunk.sql
 ```
 
 ### 7. Visualization
