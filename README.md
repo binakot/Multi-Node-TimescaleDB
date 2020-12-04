@@ -18,7 +18,7 @@ The main branch is under development and can be different from the video.
 
 ## About
 
-A multi-node setup of TimescaleDB 2.0.0 RC3.
+A multi-node setup of TimescaleDB 2.0.0 RC4.
 
 Initial cluster configuration: 
 single access node (AN) and 2 data nodes (DN) 
@@ -148,7 +148,7 @@ $ docker run -d \
     -v `pwd`/trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh \
     -v `pwd`/unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh \
     -v `pwd`//init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh \
-    timescale/timescaledb-postgis:2.0.0-rc3-pg12
+    timescale/timescaledb-postgis:2.0.0-rc4-pg12
 ```
 
 Now connect a new node to the cluster running command below from the access node:
