@@ -148,7 +148,7 @@ $ docker run -d \
     -v `pwd`/trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh \
     -v `pwd`/unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh \
     -v `pwd`//init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh \
-    timescale/timescaledb-postgis:2.0.0-pg12
+    timescale/timescaledb-postgis:2.0.1-pg12
 ```
 
 Now connect a new node to the cluster running command below from the access node:
