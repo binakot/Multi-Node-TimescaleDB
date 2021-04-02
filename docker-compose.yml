@@ -15,7 +15,7 @@ volumes:
 
 services:
   pg_access_node:
-    image: timescale/timescaledb-postgis:2.0.1-pg12
+    image: timescale/timescaledb-postgis:2.1.1-pg13
     container_name: pg_access_node
     restart: unless-stopped
     environment:
@@ -34,7 +34,7 @@ services:
       - ./data:/tmp/data
 
   pg_data_node_1:
-    image: timescale/timescaledb-postgis:2.0.1-pg12
+    image: timescale/timescaledb-postgis:2.1.1-pg13
     container_name: pg_data_node_1
     restart: unless-stopped
     environment:
@@ -52,7 +52,7 @@ services:
       - ./init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
 
   pg_data_node_2:
-    image: timescale/timescaledb-postgis:2.0.1-pg12
+    image: timescale/timescaledb-postgis:2.1.1-pg13
     container_name: pg_data_node_2
     restart: unless-stopped
     environment:
