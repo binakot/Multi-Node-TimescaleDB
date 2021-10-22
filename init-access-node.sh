@@ -1,12 +1,18 @@
 #!/bin/sh
 set -e
 
+# https://docs.timescale.com/timescaledb/latest/how-to-guides/configuration/timescaledb-config/#timescaledb-last-tuned-string
+# https://docs.timescale.com/timescaledb/latest/how-to-guides/multi-node-setup/required-configuration/
+
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -c "SHOW config_file"
 # To achieve good query performance you need to enable partitionwise aggregation on the access node. This pushes down aggregation queries to the data nodes.
-# https://docs.timescale.com/v2.0/using-timescaledb/distributed-hypertables#select
 # https://www.postgresql.org/docs/12/runtime-config-query.html#enable_partitionwise_aggregate
 sed -ri "s!^#?(enable_partitionwise_aggregate)\s*=.*!\1 = on!" /var/lib/postgresql/data/postgresql.conf
 grep "enable_partitionwise_aggregate" /var/lib/postgresql/data/postgresql.conf
+# JIT should be set to off on the access node as JIT currently doesn't work well with distributed queries.
+# https://www.postgresql.org/docs/12/runtime-config-query.html#jit
+sed -ri "s!^#?(jit)\s*=.*!\1 = off!" /var/lib/postgresql/data/postgresql.conf
+grep "jit" /var/lib/postgresql/data/postgresql.conf
 
 # Enable PostGIS extension
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" <<-EOSQL
