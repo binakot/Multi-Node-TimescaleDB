@@ -42,7 +42,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - '5432:5432'
+      - '5433:5432'
     networks:
       - overlay
     volumes:
@@ -60,7 +60,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - '5432:5432'
+      - '5434:5432'
     networks:
       - overlay
     volumes:
@@ -77,6 +77,6 @@ services:
       - PGADMIN_DEFAULT_EMAIL=admin@admin.com
       - PGADMIN_DEFAULT_PASSWORD=admin
     ports:
-      - '5432:5432'
+      - '15432:80'
     networks:
       - overlay

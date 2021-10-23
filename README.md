@@ -18,11 +18,12 @@ The main branch is under development and can be different from the video.
 
 ## About
 
-A multi-node setup of TimescaleDB 2.1.1 with PostgreSQL 13.
+A multi-node setup of TimescaleDB `2.3.0` with PostgreSQL `13` based on Docker image: 
+[timescale/timescaledb-postgis:2.3.0-pg13](https://hub.docker.com/r/timescale/timescaledb-postgis).
 
 Initial cluster configuration: 
 single access node (AN) and 2 data nodes (DN) 
-with 1 week interval and replication factor 1.
+with interval `1 week` and replication factor `1`.
 
 ## How to run
 
@@ -64,7 +65,7 @@ password: postgres
 ### 1. Initialization
 
 At this moment you should to have a running cluster with 1 access node and 2 data nodes.
-If you didn't please look at `how to run` section and do it firstly.
+If you don't please look at `how to run` section and do it firstly.
 Also, you need access to all nodes via `psql`, `pgAdmin` or any other way you like.
 
 Now you can fill sample data (took about 2 minutes on NVMe):
@@ -148,7 +149,7 @@ $ docker run -d \
     -v `pwd`/trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh \
     -v `pwd`/unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh \
     -v `pwd`//init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh \
-    timescale/timescaledb-postgis:2.1.1-pg13
+    timescale/timescaledb-postgis:2.3.0-pg13
 ```
 
 Now connect a new node to the cluster running command below from the access node:
@@ -283,14 +284,17 @@ $ docker exec -i pg_data_node_2 \
     pg_dump -h localhost -p 5432 -U postgres -Fp -v \
     -t _timescaledb_internal._dist_hyper_1_1_chunk postgres > ./chunk_after_compression.sql
 
+# Find compressed_chunk_id that corresponds to uncompressed _timescaledb_internal._dist_hyper_1_1_chunk.
 $ docker exec -i pg_data_node_2 \
     psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres \
     -c "SELECT compressed_chunk_id FROM _timescaledb_catalog.chunk WHERE table_name = '_dist_hyper_1_1_chunk'"
 
 $ docker exec -i pg_data_node_2 \
     pg_dump -h localhost -p 5432 -U postgres -Fp -v \
-    -t _timescaledb_internal.compress_hyper_1_1_chunk postgres > ./compressed_chunk.sql
+    -t _timescaledb_internal.compress_hyper_2_185_chunk postgres > ./compressed_chunk.sql
 ```
+
+Look at result sql files content.
 
 ### 7. Visualization
 
@@ -301,7 +305,7 @@ $ docker run \
     --name=grafana \
     -p 3000:3000 \
     -e "GF_INSTALL_PLUGINS=grafana-worldmap-panel" \
-    -d grafana/grafana
+    -d grafana/grafana:latest
 ```
 
 Open it on [http://localhost:3000](http://localhost:3000)
@@ -313,9 +317,9 @@ Then add `TimescaleDB` as new datasource and import dashboard:
 
 * Connect to access node via docker bridge (host=`172.17.0.1`; port=`5432`; db=`postgres`; user=`postgres`; password=`postgres`; ssl=`off`).
 
-* Select `PostgreSQL` version `12` and enable `TimescaleDB` support.
+* Select `PostgreSQL` version `12+` and enable `TimescaleDB` support.
 
-* Import dashboard from the file `grafana.json` (Create / Import / Upload JSON file).
+After that import dashboard from the file `grafana.json` (Create / Import / Upload JSON file).
 
 ### N. Play with cluster and stop it after
 
@@ -364,11 +368,8 @@ $ docker network rm pg_cluster_network
 
 ## Main points
 
-* Distributed hypertables and multi-node capabilities are currently in `BETA`. 
-This feature is not meant for production use!
-
-* Distributed hypertable `limitations`: 
-[https://docs.timescale.com/v2.0/using-timescaledb/limitations](https://docs.timescale.com/v2.0/using-timescaledb/limitations).
+* Hypertables and distributed hypertables `limitations`: 
+[https://docs.timescale.com/timescaledb/latest/overview/limitations/](https://docs.timescale.com/timescaledb/latest/overview/limitations/).
 
 * TimescaleDB supports `distributing hypertables` across multiple nodes (i.e., a cluster).
 A multi-node TimescaleDB implementation consists of:
@@ -400,7 +401,3 @@ When querying a distributed hypertable using native replication, the `query plan
 The planner can employ different strategies to pick the set of chunk replicas in order to, e.g., evenly spread the query load across the data nodes.
 Native replication is currently `under development` and lacks functionality for a complete high-availability solution.
 It's recommended keeping the replication factor set at the default value of 1, and instead use streaming replication on each data node.
-
-* The current version does not support altering or inserting data into `compressed` chunks. The data can be queried without any modifications, 
-however if you need to `backfill` or update data in a compressed chunk you will need to `decompress` the chunk(s) first.
-TimescaleDB also `block modifying` the schema of hypertables with compressed chunks.
