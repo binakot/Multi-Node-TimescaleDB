@@ -1,4 +1,4 @@
-version: '3.7'
+version: '3'
 
 networks:
   overlay:
@@ -15,7 +15,7 @@ volumes:
 
 services:
   pg_access_node:
-    image: timescale/timescaledb-postgis:2.1.1-pg13
+    image: timescale/timescaledb-postgis:2.3.0-pg13
     container_name: pg_access_node
     restart: unless-stopped
     environment:
@@ -23,7 +23,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - 5432:5432
+      - '5432:5432'
     networks:
       - overlay
     volumes:
@@ -34,7 +34,7 @@ services:
       - ./data:/tmp/data
 
   pg_data_node_1:
-    image: timescale/timescaledb-postgis:2.1.1-pg13
+    image: timescale/timescaledb-postgis:2.3.0-pg13
     container_name: pg_data_node_1
     restart: unless-stopped
     environment:
@@ -42,7 +42,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - 5433:5432
+      - '5433:5432'
     networks:
       - overlay
     volumes:
@@ -52,7 +52,7 @@ services:
       - ./init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh
 
   pg_data_node_2:
-    image: timescale/timescaledb-postgis:2.1.1-pg13
+    image: timescale/timescaledb-postgis:2.3.0-pg13
     container_name: pg_data_node_2
     restart: unless-stopped
     environment:
@@ -60,7 +60,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - 5434:5432
+      - '5434:5432'
     networks:
       - overlay
     volumes:
@@ -77,6 +77,6 @@ services:
       - PGADMIN_DEFAULT_EMAIL=admin@admin.com
       - PGADMIN_DEFAULT_PASSWORD=admin
     ports:
-      - 15432:80
+      - '15432:80'
     networks:
       - overlay
