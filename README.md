@@ -16,10 +16,14 @@ Added corresponding branch for the video:
 
 The main branch is under development and can be different from the video.
 
+![pgadmin](./assets/pgadmin.png)
+
+![grafana](./assets/grafana.png)
+
 ## About
 
-A multi-node setup of TimescaleDB `2.3.0` with PostgreSQL `13` based on Docker image: 
-[timescale/timescaledb-postgis:2.3.0-pg13](https://hub.docker.com/r/timescale/timescaledb-postgis).
+A multi-node setup of TimescaleDB `2.12.1` with PostgreSQL `15` based on Docker image: 
+[timescale/timescaledb-ha:pg15.4-ts2.12.1-all](https://hub.docker.com/r/timescale/timescaledb-ha).
 
 Initial cluster configuration: 
 single access node (AN) and 2 data nodes (DN) 
@@ -145,11 +149,11 @@ $ docker run -d \
     -e "POSTGRES_PASSWORD=postgres" \
     -p 5435:5432 \
     --network pg_cluster_network \
-    -v pg_data_node_3_data:/var/lib/postgresql/data \
+    -v pg_data_node_3_data:/home/postgres/pgdata/data \
     -v `pwd`/trust-all.sh:/docker-entrypoint-initdb.d/777_trust.sh \
     -v `pwd`/unsafe-boost.sh:/docker-entrypoint-initdb.d/888_boost.sh \
     -v `pwd`//init-data-node.sh:/docker-entrypoint-initdb.d/999_cluster.sh \
-    timescale/timescaledb-postgis:2.3.0-pg13
+    timescale/timescaledb-ha:pg15.4-ts2.12.1-all
 ```
 
 Now connect a new node to the cluster running command below from the access node:
@@ -305,7 +309,7 @@ $ docker run \
     --name=grafana \
     -p 3000:3000 \
     -e "GF_INSTALL_PLUGINS=grafana-worldmap-panel" \
-    -d grafana/grafana:latest
+    -d grafana/grafana:10.1.5
 ```
 
 Open it on [http://localhost:3000](http://localhost:3000)
@@ -313,13 +317,14 @@ with `admin / admin`.
 
 Then add `TimescaleDB` as new datasource and import dashboard:
 
-* Configuration / Data Sources / Add data source / Find and select `PostgreSQL`.
+* Connections / Data Sources / Add data source / Find and select `PostgreSQL`.
 
 * Connect to access node via docker bridge (host=`172.17.0.1`; port=`5432`; db=`postgres`; user=`postgres`; password=`postgres`; ssl=`off`).
+For MacOS use `host.docker.internal:5432` for host.
 
-* Select `PostgreSQL` version `12+` and enable `TimescaleDB` support.
+* Select `PostgreSQL` version `15` and enable `TimescaleDB` support.
 
-After that import dashboard from the file `grafana.json` (Create / Import / Upload JSON file).
+After that import dashboard from the file `grafana.json` (Dashboard / Import / Upload JSON file).
 
 ### N. Play with cluster and stop it after
 
@@ -365,39 +370,3 @@ $ docker network rm pg_cluster_network
 * [TimescaleDB GitHub: Examples](https://github.com/timescale/examples)
 
 ---
-
-## Main points
-
-* Hypertables and distributed hypertables `limitations`: 
-[https://docs.timescale.com/timescaledb/latest/overview/limitations/](https://docs.timescale.com/timescaledb/latest/overview/limitations/).
-
-* TimescaleDB supports `distributing hypertables` across multiple nodes (i.e., a cluster).
-A multi-node TimescaleDB implementation consists of:
-one access node to handle ingest, data routing and act as an entry point for user access;
-one or more data nodes to store and organize distributed data.
-
-* A distributed hypertable exists in a `distributed database` that consists of multiple databases stored across one or more TimescaleDB instances. 
-A database that is part of a distributed database can assume the role of either an `access node` or a `data node` (but not both).
-While the data nodes store distributed chunks, the access node is the entry point for clients to access distributed hypertables.
-
-* A client connects to an `access node` database. 
-You should not directly access hypertables or chunks on data nodes. 
-Doing so might lead to inconsistent distributed hypertables.
-
-* TimescaleDB can be elastically scaled out by simply `adding data nodes` to a distributed database.
-TimescaleDB can (and will) adjust the number of space partitions as new data nodes are added.
-Although existing chunks will not have their space partitions updated, the new settings will be applied to newly created chunks.
-
-* To ensure best performance, you should partition a distributed hypertable by both `time and space`. 
-If you only partition data by time, that chunk will have to fill up before the access node chooses another data node to store the next chunk. 
-Chunks would then be created on data nodes in `round-robin` fashion.
-In case of multiple space partitions, `only the first space partition` will be used to determine how chunks are distributed across servers (hash partitioning).
-Multi-dimensional partitioning with an additional "space" dimension that consistently partitions the data over the data nodes, similar to traditional `sharding`.
-
-* A distributed hypertable can be configured to write each chunk to multiple data nodes in order to replicate data at the chunk level. 
-This `native replication` ensures that a distributed hypertable is protected against data node failures 
-and provides an alternative to fully replicating each data node using streaming replication.
-When querying a distributed hypertable using native replication, the `query planner` knows how to include only one replica of each chunk in the query plan. 
-The planner can employ different strategies to pick the set of chunk replicas in order to, e.g., evenly spread the query load across the data nodes.
-Native replication is currently `under development` and lacks functionality for a complete high-availability solution.
-It's recommended keeping the replication factor set at the default value of 1, and instead use streaming replication on each data node.
